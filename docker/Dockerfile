@@ -1,14 +1,15 @@
 # Listing 6: Java-Template fuer Docker Sandboxes (sbx).
 #
-# Baut auf dem offiziellen minimalen Claude-Code-Template auf und legt eine
+# Baut auf dem offiziellen Claude-Code-Template (Flavor -docker) auf und legt eine
 # reproduzierbare Java-Toolchain dazu: Temurin 25 (JDK), Maven 3.10.0,
 # Gradle 9.8.1. Jeder Download wird gegen die offizielle Checksumme geprueft
 # -- ein manipuliertes Artefakt bricht den Build ab.
 #
 # Bauen (lokal, arch der Host-microVM):
 #   docker build -t jm-java-sbx:latest docker/
-# Starten:
-#   sbx run claude --pull never -t jm-java-sbx:latest .
+# In sbx laden und starten:
+#   docker save jm-java-sbx:latest -o jm.tar && sbx template load jm.tar
+#   sbx run --pull never -t jm-java-sbx:latest claude .
 #
 # Basis: claude-code-DOCKER (nicht -minimal), weil nur dieses Flavor einen
 # Docker-Daemon in der microVM mitbringt -- Voraussetzung fuer Testcontainers.
