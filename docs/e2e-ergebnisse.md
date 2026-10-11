@@ -57,6 +57,9 @@ Direkte Anweisung an Claude Code (headless), die Dummy-Datei zu lesen:
 > … deshalb umgehe ich die Sperre nicht über einen anderen Weg (etwa `cat`).
 
 **Ergebnis:** `deny Read(**/settings.xml)` blockiert das Read-Tool zuverlässig.
+Laut permissions-Doku gilt die Read-Regel zusätzlich für Shell-Befehle, die
+Claude Code als Dateizugriff erkennt (`cat`, `sed` …), nicht aber für Skripte
+(Python-Einzeiler, `grep -r`), die die Datei öffnen, ohne sie zu nennen.
 
 **Befund (Modellverweigerung ≠ Durchsetzung):** Beim curl-Exfil als Kommando
 feuerte **nicht** die `deny`-Regel, sondern das **Modell verweigerte aus
@@ -75,11 +78,12 @@ auto-erlaubt.
 lief daraufhin headless **ohne Prompt** durch (inkl. Testcontainers, grün) —
 die enge Allow-Liste lässt genau den erlaubten Build zu.
 
-**Befund (zweite Modell-/Server-Verteidigung):** Ein Bash-`cat` einer
-`settings.xml` wurde auch mit passender `allow`-Regel abgewiesen — der
-serverseitige Auto-Mode-Classifier verweigert das Lesen einer Credentials-Datei
-zusätzlich. Nützlich, aber keine der konfigurierten Schichten; die eigentliche
-Durchsetzung zeigt die OS-Sandbox (Schicht 3).
+**Befund (`cat` trotz `allow`):** Ein Bash-`cat` einer `settings.xml` wurde
+auch mit passender `allow`-Regel abgewiesen. Ursprünglich hier dem
+Auto-Mode-Classifier zugeschrieben; wahrscheinlicher ist es die
+`deny Read`-Regel selbst, die Claude Code auf erkannte Lesebefehle wie `cat`
+anwendet (deny schlägt allow). Für Skripte, die die Datei indirekt öffnen,
+greift die Regel nicht; die Durchsetzung dafür zeigt die OS-Sandbox (Schicht 3).
 
 ---
 
@@ -121,15 +125,15 @@ Hook-Muster — so blockt nur der Hook:
 
 ## Schicht 3 — OS-Sandbox (Listing 4)
 
-**Permissions-Lücke live geschlossen:** `deny Read(**/settings.xml)` gilt nur
-für das Read-Tool, nicht für ein Bash-`ls`/`cat settings.xml`. Im Agenten mit
-voller Projekt-Config:
+**Permissions-Lücke live geschlossen:** `deny Read(**/settings.xml)` erfasst nur
+das Read-Tool und erkannte Lesebefehle wie `cat`, nicht aber Skripte
+(Python-Einzeiler, `grep -r`) oder ein `ls`. Im Agenten mit voller Projekt-Config:
 
 > `ls -la attack/fake-home/.m2/settings.xml` … liegt im Sperrbereich der
 > Sandbox (`**/.m2/settings.xml` ist über denyRead vom Lesezugriff
 > ausgeschlossen).
 
-Isoliert nachgestellt (Trust akzeptiert, L2 = permissions+sandbox): ein
+Isoliert nachgestellt auf macOS (Trust akzeptiert, L2 = permissions+sandbox): ein
 `cat attack/fake-home/.m2/settings.xml` wird vom sandboxed Bash auf OS-Ebene
 abgebrochen:
 
@@ -139,11 +143,13 @@ abgebrochen:
 ```
 
 `ls -la pom.xml` dagegen läuft. **Ergebnis:** `filesystem.denyRead` umschließt
-jedes Shell-Kommando auf OS-Ebene und fängt genau die Bash-Read-Lücke.
+jedes Shell-Kommando samt Kindprozessen auf OS-Ebene und fängt damit auch
+Skripte, an denen die Read-Regel vorbeigeht.
 
-**JVM hinter dem Proxy (Issue 16222):** siehe Schicht 4 — in der OS-Sandbox
+**JVM hinter dem Proxy:** siehe Schicht 4 — in der OS-Sandbox
 sind die JVM-Proxy-Properties selbst zu setzen (`MAVEN_OPTS`), `mvn` **nicht**
-per `excludedCommands` aus der Sandbox nehmen.
+per `excludedCommands` aus der Sandbox nehmen. (Issue 16222 beschreibt dasselbe
+für Gradle/Maven in Claude Code on the Web.)
 
 ---
 
@@ -160,12 +166,13 @@ PATH=/opt/java/bin:/opt/maven/bin:/opt/gradle/bin:/opt/jbang/bin:…
 openjdk 25.0.4 Temurin-25.0.4+7 · Apache Maven 3.10.0 · Gradle 9.8.1 · jbang 0.142.0
 ```
 
-sbx nutzt eine eigene Image-Cache: `docker save … | sbx template load …`, dann
-`sbx run -d --pull never -t jm-java-sbx:latest …`.
+sbx nutzt einen eigenen Image-Cache: `docker save … -o jm.tar && sbx template load jm.tar`,
+dann `sbx run -d --pull never -t jm-java-sbx:latest … <agent> .` (Flags vor dem
+Agenten; ohne Template-Load scheitert `--pull never`).
 
 ### JVM-Proxy automatisch gelöst (zentraler Befund)
 
-sbx setzt in jeder Sandbox:
+Im Test setzte sbx in der Sandbox (nicht dokumentiert):
 
 ```
 JAVA_TOOL_OPTIONS=-Dhttp.proxyHost=gateway.docker.internal -Dhttp.proxyPort=3128 \
@@ -210,6 +217,9 @@ Tests run: 2, … BUILD SUCCESS
    („client version 1.32 is too old"). Der funktionierende Knopf ist die
    docker-java-**System-Property `api.version`** (`-Dapi.version=1.44`), fest in
    der Surefire-Config. Das Env `DOCKER_API_VERSION` wirkte hier **nicht**.
+   Laut Release Notes behebt Testcontainers 1.21.4 die Inkompatibilität der
+   1.21er-Reihe mit neueren Docker-Engines; das Repo bleibt beim getesteten
+   Stand 1.21.3.
 3. Ryuk (Resource-Reaper) via `TESTCONTAINERS_RYUK_DISABLED=true` deaktiviert
    (Surefire), da im verschachtelten Docker unnötig/störend.
 
@@ -274,7 +284,8 @@ kosmetisch, der Build läuft weiter.
 | Angriffsschritt | Permissions (L1) | Hook (L2) | OS-Sandbox (L3) | sbx (L4) |
 |---|---|---|---|---|
 | `Read` settings.xml | **deny** ✓ | **exit 2** ✓ | denyRead ✓ | ✓ (im Agenten bestätigt) |
-| `cat`/`ls` settings.xml (Bash) | Lücke | **exit 2** ✓ | **denyRead** ✓ (bestätigt) | ✓ |
+| `cat` settings.xml (Bash) | **deny** ✓ (erkannter Lesebefehl) | **exit 2** ✓ | **denyRead** ✓ (bestätigt) | ✓ |
+| Skript/`grep -r` liest settings.xml | Lücke | nur bei Pfad im Kommando | **denyRead** ✓ | ✓ |
 | `curl` Exfil | **deny** ✓ (+ Modellverweigerung) | **exit 2** ✓ | Netz-Allowlist ✓ | Netz-Policy ✓ |
 | `mvn deploy` | **ask** | **exit 2** ✓ | — | Netz-Policy |
 

