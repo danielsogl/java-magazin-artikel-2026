@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/settings.xml)",
+      "Read(**/.env)",
+      "Bash(curl:*)",
+      "Bash(wget:*)"
+    ],
+    "ask": [
+      "Bash(mvn deploy:*)",
+      "Bash(gradlew publish:*)"
+    ],
+    "allow": [
+      "Bash(mvn -q test:*)",
+      "Bash(ls:*)",
+      "Bash(echo:*)",
+      "Read(src/**)",
+      "Read(pom.xml)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jbang ${CLAUDE_PROJECT_DIR}/.claude/hooks/GuardHook.java",
+            "timeout": 30,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}
