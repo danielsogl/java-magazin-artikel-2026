@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  * die Claude zu sehen bekommt). Ohne onFailure blockiert nur Exit 2 (bzw. JSON
  * permissionDecision "deny"); jeder andere Fehler laesst den Aufruf durch.
  * Deshalb steht in settings.json "onFailure": "block": dann blockiert jeder
- * Exit-Code ausser 0 -- auch 1, ungueltiges JSON oder ein Timeout.
+ * Exit-Code ausser 0, auch 1, ungueltiges JSON oder ein Timeout.
  *
  * Zweite Verteidigungslinie HINTER den permissions aus settings.json: faengt,
  * was eine reine Glob-Regel nicht sieht (z. B. Secret-Pfade, die ueber ein

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Dummy-Exfil-Listener fuer die Demo. Laeuft lokal, speichert nichts dauerhaft,
-sondern loggt nur, was ankommt -- so wird sichtbar, OB Daten durchkommen.
+sondern loggt nur, was ankommt. So wird sichtbar, OB Daten durchkommen.
 
     python3 attack/listener.py            # lauscht auf 127.0.0.1:9999
 """

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Spielt die drei Schritte der Nutzlast aus attack/ISSUE-1337.md deterministisch
-# nach -- ohne LLM. So laesst sich jede Schutzschicht (Hook, Sandbox) direkt
+# nach, ohne LLM. So laesst sich jede Schutzschicht (Hook, Sandbox) direkt
 # gegen denselben Angriff testen.
 #
 # WICHTIG: setzt HOME auf das Fake-HOME, damit NIE die echte settings.xml

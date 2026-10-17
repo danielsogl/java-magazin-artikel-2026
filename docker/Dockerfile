@@ -2,8 +2,8 @@
 #
 # Baut auf dem offiziellen Claude-Code-Template (Flavor -docker) auf und legt eine
 # reproduzierbare Java-Toolchain dazu: Temurin 25 (JDK), Maven 3.10.0,
-# Gradle 9.8.1. Jeder Download wird gegen die offizielle Checksumme geprueft
-# -- ein manipuliertes Artefakt bricht den Build ab.
+# Gradle 9.8.1. Jeder Download wird gegen die offizielle Checksumme geprueft;
+# ein manipuliertes Artefakt bricht den Build ab.
 #
 # Bauen (lokal, arch der Host-microVM):
 #   docker build -t jm-java-sbx:latest docker/
@@ -12,7 +12,7 @@
 #   sbx run --pull never -t jm-java-sbx:latest claude .
 #
 # Basis: claude-code-DOCKER (nicht -minimal), weil nur dieses Flavor einen
-# Docker-Daemon in der microVM mitbringt -- Voraussetzung fuer Testcontainers.
+# Docker-Daemon in der microVM mitbringt (Voraussetzung fuer Testcontainers).
 # Mit claude-code-minimal fehlt /var/run/docker.sock und Testcontainers scheitert.
 FROM docker/sandbox-templates:claude-code-docker
 
@@ -83,7 +83,7 @@ ENV JAVA_HOME=/opt/java \
     PATH=/opt/java/bin:/opt/maven/bin:/opt/gradle/bin:/opt/jbang/bin:$PATH
 
 # Managed Settings (hoechste Prioritaet, vom Projekt nicht ueberschreibbar):
-# Deny-Regeln, Mindestversion und sandbox.enabled=false -- in der microVM ist
+# Deny-Regeln, Mindestversion und sandbox.enabled=false. In der microVM ist
 # die VM die Grenze, Claudes OS-Sandbox stoert dort Testcontainers.
 COPY managed-settings.json /etc/claude-code/managed-settings.json
 
@@ -97,7 +97,7 @@ RUN claude install "${CLAUDE_CODE_VERSION}" && claude --version
 
 # JBang-Abhaengigkeiten des Hooks (Jackson) beim Build in den ~/.m2-Cache
 # vorwaermen. In der sbx-microVM loest JBang die //DEPS nicht ueber den
-# sbx-Proxy auf (Maven selbst schon, via JAVA_TOOL_OPTIONS) -- der Hook
+# sbx-Proxy auf (Maven selbst schon, via JAVA_TOOL_OPTIONS), der Hook
 # scheitert sonst an der DEPS-Aufloesung. Vorgewaermt laeuft GuardHook.java
 # dort offline. Version muss zur //DEPS-Zeile in GuardHook.java passen.
 RUN set -euo pipefail; \

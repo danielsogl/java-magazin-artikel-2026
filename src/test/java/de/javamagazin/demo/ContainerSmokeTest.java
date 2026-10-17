@@ -11,7 +11,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * Beweist, dass Testcontainers gegen den Docker-Daemon in der sbx-microVM läuft.
- * Überspringt sich, wenn kein Docker erreichbar ist -- so bleibt `mvn test`
+ * Überspringt sich, wenn kein Docker erreichbar ist. So bleibt `mvn test`
  * auch ohne Docker (und auf dem claude-code-minimal-Template) grün.
  */
 @Testcontainers
@@ -20,7 +20,7 @@ class ContainerSmokeTest {
     @Test
     void startetContainerGegenDenDockerDaemon() {
         assumeTrue(DockerClientFactory.instance().isDockerAvailable(),
-                "kein Docker-Daemon erreichbar -- Test wird uebersprungen");
+                "kein Docker-Daemon erreichbar, Test wird uebersprungen");
 
         try (GenericContainer<?> container =
                 new GenericContainer<>(DockerImageName.parse("alpine:3.20"))
