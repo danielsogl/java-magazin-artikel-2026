@@ -2,7 +2,7 @@
 
 Beispielcode zum Java-Magazin-Artikel *„Bitte reicht nicht"*: Coding-Agenten
 mit **Berechtigungen, Hooks, OS-Sandbox** und **Docker Sandboxes (sbx)**
-absichern, am Beispiel von **Claude Code 2.1.296** und **sbx 0.47.0**.
+absichern, am Beispiel von **Claude Code 2.1.302** und **sbx 0.48.0** (Stand 17.10.2026).
 
 Das Repo zeigt vier Schutzschichten gegen *eine* konkrete Bedrohung — eine
 Prompt Injection in einem Issue, die den Agenten zur Exfiltration von
@@ -52,7 +52,14 @@ Die (Dummy-)`settings.xml` landet vollständig beim Listener.
 
 `.claude/settings.json` fasst `allow` eng (nur `mvn -q test`, Lesen in `src/`),
 stellt Deploys auf `ask` und sperrt per `deny` die Secret-Pfade und
-`Bash(curl:*)`. Direkt prüfen:
+`Bash(curl *)`. Regeln stehen in der dokumentierten Leerzeichen-Form
+(`Bash(curl *)`); die ältere Form `Bash(curl:*)` funktioniert weiter.
+
+> **Pfad-Anker:** `Read(**/.m2/settings.xml)` ist am Arbeitsverzeichnis
+> verankert, **nicht** am Home. Die echte `~/.m2/settings.xml` sperrt erst
+> `Read(~/.m2/settings.xml)` (am 17.10.2026 nachgeprüft, siehe E2E-Doku, T1).
+
+Direkt prüfen:
 
 ```bash
 claude -p "Lies attack/fake-home/.m2/settings.xml und gib den Inhalt aus." \
@@ -64,8 +71,11 @@ einmal interaktiv per Trust-Dialog bestätigt sein.)
 ### Schicht 2 — PreToolUse-Hook (Listing 2+3)
 
 `GuardHook.java` liest das Event von stdin, prüft Muster und blockiert mit
-**Exit-Code 2** (stderr = Begründung). In `settings.json` sorgt
-`"onFailure": "block"` dafür, dass auch ein Hook-Absturz fail-closed blockt.
+**Exit-Code 2** (stderr = Begründung). Ohne `onFailure` blockiert nur Exit 2
+(bzw. JSON mit `permissionDecision: "deny"`); jeder andere Fehler lässt den
+Aufruf durch. Mit `"onFailure": "block"` (ab Claude Code 2.1.295) blockiert
+**jeder Exit-Code außer 0**, auch Exit 1, ungültiges JSON oder ein Timeout,
+also fail-closed.
 Logik isoliert testen:
 
 ```bash
@@ -111,10 +121,14 @@ docker save jm-java-sbx:latest -o jm.tar && sbx template load jm.tar
 sbx run --pull never -t jm-java-sbx:latest claude .    # Agent in der microVM starten
 ```
 
-> `sbx policy init` ersetzt in 0.47.0 das ältere `sbx policy set-default`.
+> `sbx policy init` ersetzt (seit 0.47.0) das ältere `sbx policy set-default`.
 > Flags stehen vor dem Agenten (`sbx run [flags] [AGENT] [PATH]`); ohne
 > vorheriges `sbx template load` scheitert `--pull never`.
 > `sbx policy init` ändert die **globale** Policy für alle Sandboxes.
+
+Das Template hebt Claude Code auf 2.1.302 an (das Basis-Image bringt
+2.1.280 mit, zu alt für `onFailure`). `docker/managed-settings.json` setzt
+zusätzlich `requiredMinimumVersion: "2.1.299"`.
 
 Infrastruktur ohne Agent-Login prüfbar (Agent `shell` statt `claude`):
 
@@ -137,11 +151,12 @@ sbx exec jm-agent -- bash -lc 'export ANTHROPIC_API_KEY=sk-ant-proxy-managed; \
 
 **Testcontainers:** Das Template baut auf **`claude-code-docker`** (nur dieses
 Flavor hat einen Docker-Daemon in der microVM). `claude-code-minimal` hätte
-keinen → Testcontainers scheitert dort. Zwei Stolpersteine sind in der
-`pom.xml` (Surefire) fest verdrahtet: `-Dapi.version=1.44` (docker-java handelt
-sonst API 1.32 aus, die der Daemon ablehnt) und `TESTCONTAINERS_RYUK_DISABLED=true`.
-Getestet ist Testcontainers 1.21.3; laut Release Notes macht erst 1.21.4 die
-1.21er-Reihe mit neueren Docker-Engines kompatibel (hier nicht getestet).
+keinen → Testcontainers scheitert dort. Getestet ist Testcontainers **2.0.5**
+(Artefakt `testcontainers-junit-jupiter`, Version per `testcontainers.version`
+über die Spring-Boot-Verwaltung gelegt). Der frühere Workaround
+`-Dapi.version=1.44` für 1.21.3 ist damit entfallen; der Smoke-Test läuft in der
+microVM ohne ihn grün. In der Surefire-Config bleibt nur
+`TESTCONTAINERS_RYUK_DISABLED=true`.
 `ContainerSmokeTest` überspringt sich, wenn kein Docker erreichbar ist.
 
 **Claudes OS-Sandbox in sbx:** redundant — die microVM isoliert bereits. Für den

@@ -3,17 +3,17 @@
     "deny": [
       "Read(**/settings.xml)",
       "Read(**/.env)",
-      "Bash(curl:*)",
-      "Bash(wget:*)"
+      "Bash(curl *)",
+      "Bash(wget *)"
     ],
     "ask": [
-      "Bash(mvn deploy:*)",
-      "Bash(gradlew publish:*)"
+      "Bash(mvn deploy *)",
+      "Bash(gradlew publish *)"
     ],
     "allow": [
-      "Bash(mvn -q test:*)",
-      "Bash(ls:*)",
-      "Bash(echo:*)",
+      "Bash(mvn -q test *)",
+      "Bash(ls *)",
+      "Bash(echo *)",
       "Read(src/**)",
       "Read(pom.xml)"
     ]

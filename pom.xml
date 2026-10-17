@@ -20,6 +20,8 @@
     <properties>
         <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- ueberschreibt die von Spring Boot 3.5 verwaltete 1.21.x-Linie -->
+        <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
 
     <dependencies>
@@ -34,7 +36,7 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -49,16 +51,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!--
-                      Testcontainers gegen den Docker-Daemon in der sbx-microVM:
-                      Der docker-java-Client in Testcontainers 1.21.x handelt per
-                      Default API 1.32 aus; der Daemon (Docker 29.x) verlangt aber
-                      >= 1.40. Deshalb die docker-java-Property api.version pinnen.
-                      Das DOCKER_API_VERSION-Env greift hier NICHT.
-                    -->
-                    <systemPropertyVariables>
-                        <api.version>1.44</api.version>
-                    </systemPropertyVariables>
                     <environmentVariables>
                         <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
                     </environmentVariables>

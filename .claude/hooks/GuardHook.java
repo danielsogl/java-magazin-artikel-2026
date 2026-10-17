@@ -1,6 +1,6 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 25
-//DEPS com.fasterxml.jackson.core:jackson-databind:2.18.2
+//DEPS com.fasterxml.jackson.core:jackson-databind:2.22.3
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,9 +14,10 @@ import java.util.regex.Pattern;
  *
  * Liest das PreToolUse-Event als JSON von stdin, prueft Tool und Argumente
  * gegen eine Deny-Liste und blockiert mit Exit-Code 2 (stderr = Begruendung,
- * die Claude zu sehen bekommt). Jeder andere Code laesst den Aufruf durch --
- * deshalb ist in settings.json zusaetzlich "onFailure": "block" gesetzt, damit
- * auch ein Absturz des Hooks blockiert statt stillschweigend durchzulassen.
+ * die Claude zu sehen bekommt). Ohne onFailure blockiert nur Exit 2 (bzw. JSON
+ * permissionDecision "deny"); jeder andere Fehler laesst den Aufruf durch.
+ * Deshalb steht in settings.json "onFailure": "block": dann blockiert jeder
+ * Exit-Code ausser 0 -- auch 1, ungueltiges JSON oder ein Timeout.
  *
  * Zweite Verteidigungslinie HINTER den permissions aus settings.json: faengt,
  * was eine reine Glob-Regel nicht sieht (z. B. Secret-Pfade, die ueber ein

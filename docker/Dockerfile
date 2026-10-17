@@ -18,15 +18,15 @@ FROM docker/sandbox-templates:claude-code-docker
 # TARGETARCH wird von buildx gesetzt: amd64 | arm64
 ARG TARGETARCH
 
-ARG JDK_VERSION=25.0.4+7
+ARG JDK_VERSION=25.0.4.1+1
 ARG MAVEN_VERSION=3.10.0
 ARG GRADLE_VERSION=9.8.1
 ARG JBANG_VERSION=0.142.0
 ARG JBANG_SHA256=8bee0bd035344cc46322aff7117ec475d48cefe37f2a79ff2c6ee3db577bb070
 
 # Checksummen (offiziell, siehe docs/e2e-ergebnisse.md fuer die Quellen)
-ARG JDK_SHA256_amd64=e58fcdcd637b25c03ca84cbbcefc70d11efb8f4b4cbd05decc9f661769d77f94
-ARG JDK_SHA256_arm64=621f7196f0b682fb557da58bec89bd7dfe5419811fe1c0ba75c9cc8432f084c7
+ARG JDK_SHA256_amd64=dbb698396d478e7fa2b1e50f4103324b2a99b90569ee27c33f2261f9215cf41e
+ARG JDK_SHA256_arm64=69df11a02cfa3ef7d7ca645e03edce6778ec090e100f6ae2b42097865730ac52
 ARG MAVEN_SHA512=908b1501bfb420bf7c8affb855534a9c407fd6099367bfb9f2f2dcb8e9799102bffb84518cde74c679bd76870247c6528683abdd620581bffa90f95d92d175aa
 ARG GRADLE_SHA256=dce76f55f8e251a3a1f130eb120f30b3d271de2b76c9b0729d316b5a1b6dc01f
 
@@ -88,12 +88,18 @@ ENV JAVA_HOME=/opt/java \
 # Zurueck auf den unprivilegierten Agent-User des Basis-Images (uid 1000).
 USER agent
 
+# Claude Code im Basis-Image (2.1.280) ist zu alt: "onFailure" fuer Hooks
+# greift erst ab 2.1.295, Sicherheitsfixes fuer Sandbox/Hooks ab 2.1.299.
+ARG CLAUDE_CODE_VERSION=2.1.302
+RUN claude install "${CLAUDE_CODE_VERSION}" && claude --version
+
 # JBang-Abhaengigkeiten des Hooks (Jackson) beim Build in den ~/.m2-Cache
-# vorwaermen. In der sbx-microVM kommt jbangs Maven-Resolver sonst nicht an
-# Maven Central vorbei (Proxy) und der Hook scheitert an der DEPS-Aufloesung.
-# Vorgewaermt laeuft GuardHook.java dort offline.
+# vorwaermen. In der sbx-microVM loest JBang die //DEPS nicht ueber den
+# sbx-Proxy auf (Maven selbst schon, via JAVA_TOOL_OPTIONS) -- der Hook
+# scheitert sonst an der DEPS-Aufloesung. Vorgewaermt laeuft GuardHook.java
+# dort offline. Version muss zur //DEPS-Zeile in GuardHook.java passen.
 RUN set -euo pipefail; \
-    printf '//DEPS com.fasterxml.jackson.core:jackson-databind:2.18.2\nclass Warm { public static void main(String[] a) {} }\n' > /tmp/Warm.java; \
+    printf '//DEPS com.fasterxml.jackson.core:jackson-databind:2.22.3\nclass Warm { public static void main(String[] a) {} }\n' > /tmp/Warm.java; \
     jbang /tmp/Warm.java; rm /tmp/Warm.java
 
 RUN java -version && mvn -v && gradle --version && jbang --version
