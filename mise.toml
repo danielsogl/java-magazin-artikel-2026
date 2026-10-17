@@ -1,0 +1,6 @@
+# Projektlokale Toolchain:  mise install
+[tools]
+java = "temurin-25"
+maven = "3.9.16"
+# jbang fuer den PreToolUse-Hook
+jbang = "latest"

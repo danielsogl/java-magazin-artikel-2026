@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/settings.xml)",
+      "Read(**/.env)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "ask": [
+      "Bash(mvn deploy *)",
+      "Bash(gradlew publish *)"
+    ],
+    "allow": [
+      "Bash(mvn -q test *)",
+      "Read(src/**)",
+      "Read(pom.xml)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "repo.maven.apache.org",
+        "repo1.maven.org"
+      ]
+    },
+    "filesystem": {
+      "denyRead": [
+        "**/settings.xml",
+        "**/.env",
+        "~/.ssh"
+      ]
+    }
+  }
+}
