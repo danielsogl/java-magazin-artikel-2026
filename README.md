@@ -23,7 +23,7 @@ mise.toml                      projektlokale Toolchain (java, maven, jbang)
 .claude/settings.json          Listing 1 (permissions) + 2 (Hook) + 4 (Sandbox)
 .claude/hooks/GuardHook.java   Listing 3: PreToolUse-Guard als JBang-Single-File
 docker/Dockerfile              Listing 6: Java-Template für sbx (Temurin/Maven/Gradle/jbang)
-docker/managed-settings.json   optionale, nicht überschreibbare Managed Settings
+docker/managed-settings.json   Managed Settings im sbx-Template (nicht überschreibbar)
 attack/ISSUE-1337.md           präpariertes Issue mit versteckter Prompt Injection
 attack/listener.py             Dummy-Exfil-Listener (loggt, was ankommt)
 attack/replay.sh               spielt die Nutzlast deterministisch nach (ohne LLM)
@@ -140,8 +140,9 @@ sbx run --pull never -t jm-java-sbx:latest claude .    # Agent in der microVM st
 > `sbx policy init` ändert die **globale** Policy für alle Sandboxes.
 
 Das Template hebt Claude Code auf 2.1.302 an (das Basis-Image bringt
-2.1.280 mit, zu alt für `onFailure`). `docker/managed-settings.json` setzt
-zusätzlich `requiredMinimumVersion: "2.1.299"`.
+2.1.280 mit, zu alt für `onFailure`). Es kopiert `docker/managed-settings.json`
+nach `/etc/claude-code/`: Deny-Regeln, `requiredMinimumVersion: "2.1.299"` und
+`sandbox.enabled: false` (siehe unten).
 
 Infrastruktur ohne Agent-Login prüfbar (Agent `shell` statt `claude`):
 
@@ -172,16 +173,19 @@ microVM ohne ihn grün. In der Surefire-Config bleibt nur
 `TESTCONTAINERS_RYUK_DISABLED=true`.
 `ContainerSmokeTest` überspringt sich, wenn kein Docker erreichbar ist.
 
-**Claudes OS-Sandbox in sbx:** läuft in der microVM mit. Das Template bringt
-`bwrap` mit, und mit `sandbox.enabled` plus `failIfUnavailable` startet Claude
-Code dort normal. Die OS-Sandbox wirkt als zusätzliche Schicht *innerhalb* der
-VM: Im Test (T3, E2E-Doku) stoppte `denyRead` einen verschleierten
-Python-Read der `settings.xml`, der am Hook vorbeiging. Die microVM schützt den
-Host, die OS-Sandbox schützt Secrets in der VM. `docs/layers/L3-permissions-hook.json`
-(ohne `sandbox`-Block) bleibt als Variante, wenn man bewusst darauf verzichtet.
+**Claudes OS-Sandbox in sbx:** im Template per Managed Settings **aus**
+(`sandbox.enabled: false`, übersteuert das `sandbox.enabled`/`failIfUnavailable`
+des Projekts). In der VM ist die **microVM die Grenze**. Technisch liefe die
+OS-Sandbox dort (bwrap ist vorhanden, T3), sie stört aber Builds mit
+Testcontainers: Im Agenten scheiterte `mvn -q test`, weil `/tmp` für JNA nicht
+beschreibbar und der sbx-Proxy aus dem bwrap-Netz nicht erreichbar ist (T5).
+Preis: In der VM entfällt `denyRead` als Schicht gegen Skripte, die Secrets
+indirekt lesen (in T3 stoppte es einen verschleierten Python-Read). Es bleiben
+permissions, Hook, die Netz-Policy von sbx und die VM-Grenze; Host-Secrets
+sind in der VM ohnehin nicht vorhanden. Auf dem **Host bleibt die OS-Sandbox an.**
 
 ## Reihenfolge der Settings (wichtig)
 
 Managed Settings > Projekt-`settings.json` > User-Settings. Die Deny-Regeln aus
-`docker/managed-settings.json` (einkommentieren) kann ein eingechecktes Projekt
+`docker/managed-settings.json` (im Template aktiv) kann ein eingechecktes Projekt
 **nicht** aufweichen — so bleibt die Organisationsvorgabe verbindlich.

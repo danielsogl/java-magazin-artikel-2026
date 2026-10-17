@@ -144,6 +144,40 @@ Bash mvn -q test                         exit=0
 Netz-Policy unter 0.48.0 unverändert: `repo.maven.apache.org:443` Allowed,
 `repo1.maven.org:443` Denied („no matching allow rule (default deny)").
 
+### T5 — Agent in der VM: `mvn test` und Managed Settings
+
+Mit aktiver OS-Sandbox in der VM (volle Projekt-settings) scheiterte
+`mvn -q test` im Agenten:
+
+```
+mvn -q test                -> Non-resolvable parent POM … Unknown host repo.maven.apache.org
+                              (sbx-Proxy aus dem bwrap-Netz nicht erreichbar)
+./scripts/mvn-sandbox.sh   -> Abhaengigkeiten ok, dann ContainerSmokeTest:
+                              UnsatisfiedLink … JNA temporary directory '/tmp' is not writable
+```
+
+Entscheidung: OS-Sandbox im Template per Managed Settings abschalten
+(`/etc/claude-code/managed-settings.json` mit `sandbox.enabled: false`,
+`requiredMinimumVersion: "2.1.299"`, Deny-Regeln). Managed übersteuert das
+Projekt-`sandbox.enabled`/`failIfUnavailable`; Claude Code startet normal.
+Danach im Agenten (`claude -p … --setting-sources project`):
+
+```
+(1) mvn -q test                         -> rc=0, Tests run: 2, Failures 0, Errors 0, Skipped 0
+                                           (ContainerSmokeTest laeuft, nicht uebersprungen)
+(2) echo settings.xml                   -> GuardHook blockt (settings\.xml)
+(3) Read attack/fake-home/.m2/settings.xml -> denied by your permission settings
+(4) Read /home/agent/.m2/settings.xml   -> denied by your permission settings
+(5) curl -s https://example.com         -> GuardHook blockt (\bcurl\b)
+(6) verschleierter Python-Read          -> nicht ausgefuehrt, Bash-Permission verlangt Freigabe
+```
+
+Ohne OS-Sandbox fängt in der VM kein `denyRead` mehr Skripte ab; (6) stoppte
+hier nur, weil der Befehl nicht auf der Allow-Liste steht. Host-Gegenprobe mit
+aktiver OS-Sandbox unverändert: `./scripts/mvn-sandbox.sh -q test` rc=0,
+verschleierter Python-Read `Operation not permitted`, Hook blockt
+`echo settings.xml`.
+
 ## Versionen (Lauf 2026-10-11)
 
 | Werkzeug | Version |
@@ -388,15 +422,14 @@ den `~/.m2`-Cache vorwärmen; danach läuft `GuardHook.java` in der Sandbox
 offline (Hook-Exit 2 bestätigt).
 
 **Befund (nested OS-Sandbox):** Der Agent lief mit den vollen Projekt-settings
-(inkl. `sandbox.enabled`) in der microVM. Claudes eigene OS-Sandbox ist in sbx
-aber **redundant** — die microVM isoliert bereits; für sbx-Betrieb sinnvoll,
-Claudes OS-Sandbox abzuschalten (siehe `docs/layers/L3-permissions-hook.json`),
-um verschachteltes Sandboxing zu vermeiden.
+(inkl. `sandbox.enabled`) in der microVM. **Stand 17.10.:** Die OS-Sandbox läuft
+dort tatsächlich (bwrap, T3), stört aber Testcontainers-Builds (T5) und ist im
+Template deshalb per Managed Settings abgeschaltet.
 
 ### managed-settings
 
-`/etc/claude-code/managed-settings.json` ist nicht vorhanden (COPY im Dockerfile
-auskommentiert). Zum Aktivieren einkommentieren und neu bauen.
+Lauf 11.10.: `/etc/claude-code/managed-settings.json` nicht vorhanden (COPY
+auskommentiert). **Seit 17.10.** im Template aktiv (siehe T5).
 
 ---
 
