@@ -159,9 +159,13 @@ microVM ohne ihn grün. In der Surefire-Config bleibt nur
 `TESTCONTAINERS_RYUK_DISABLED=true`.
 `ContainerSmokeTest` überspringt sich, wenn kein Docker erreichbar ist.
 
-**Claudes OS-Sandbox in sbx:** redundant — die microVM isoliert bereits. Für den
-sbx-Betrieb `docs/layers/L3-permissions-hook.json` (permissions + hook, ohne
-`sandbox`-Block) verwenden, um verschachteltes Sandboxing zu vermeiden.
+**Claudes OS-Sandbox in sbx:** läuft in der microVM mit. Das Template bringt
+`bwrap` mit, und mit `sandbox.enabled` plus `failIfUnavailable` startet Claude
+Code dort normal. Die OS-Sandbox wirkt als zusätzliche Schicht *innerhalb* der
+VM: Im Test (T3, E2E-Doku) stoppte `denyRead` einen verschleierten
+Python-Read der `settings.xml`, der am Hook vorbeiging. Die microVM schützt den
+Host, die OS-Sandbox schützt Secrets in der VM. `docs/layers/L3-permissions-hook.json`
+(ohne `sandbox`-Block) bleibt als Variante, wenn man bewusst darauf verzichtet.
 
 ## Reihenfolge der Settings (wichtig)
 
