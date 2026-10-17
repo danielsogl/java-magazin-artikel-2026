@@ -81,9 +81,10 @@ ENV JAVA_HOME=/opt/java \
     JBANG_DIR=/home/agent/.jbang \
     PATH=/opt/java/bin:/opt/maven/bin:/opt/gradle/bin:/opt/jbang/bin:$PATH
 
-# Optional: organisationsweite, nicht ueberschreibbare Managed Settings.
-# Aktivieren, indem die Datei nach docker/ gelegt und die Zeile entkommentiert wird.
-# COPY managed-settings.json /etc/claude-code/managed-settings.json
+# Managed Settings (hoechste Prioritaet, vom Projekt nicht ueberschreibbar):
+# Deny-Regeln, Mindestversion und sandbox.enabled=false -- in der microVM ist
+# die VM die Grenze, Claudes OS-Sandbox stoert dort Testcontainers.
+COPY managed-settings.json /etc/claude-code/managed-settings.json
 
 # Zurueck auf den unprivilegierten Agent-User des Basis-Images (uid 1000).
 USER agent
