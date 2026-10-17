@@ -36,6 +36,7 @@ docs/e2e-ergebnisse.md         echte Ausgaben, Versionen, Abweichungen
 ```bash
 mise install            # java 25, maven 3.9.16, jbang (projektlokal)
 mvn -q test             # Opfer-Workspace baut und testet
+# in Claudes OS-Sandbox (Host):  ./scripts/mvn-sandbox.sh -q test
 ```
 
 ## Die vier Schichten ausprobieren
@@ -92,13 +93,25 @@ Shell-Kommando** auf OS-Ebene: `filesystem.denyRead` für die Secret-Pfade
 aber auf Skripte wie einen Python-Einzeiler oder ein `grep -r`),
 Netzwerk-Allowlist nur auf Maven Central, `failIfUnavailable: true`.
 
-> **JVM hinter dem Proxy:** Die JVM ignoriert
-> `HTTPS_PROXY`. Maven also **nicht** per `excludedCommands` aus der Sandbox
-> nehmen, sondern die JVM-Proxy-Properties setzen, z. B.
-> `MAVEN_OPTS="-Dhttps.proxyHost=… -Dhttps.proxyPort=…"`. Claude-Code-Issue
-> 16222 beschreibt dasselbe Problem für Gradle und Maven in Claude Code on the
-> Web. In sbx setzte die CLI im Test `JAVA_TOOL_OPTIONS` mit dem Proxy
-> (undokumentiert, siehe E2E-Doku).
+> **Maven hinter dem Sandbox-Proxy:** Maven ignoriert `HTTPS_PROXY`. Maven
+> trotzdem **nicht** per `excludedCommands` aus der Sandbox nehmen. Die Sandbox
+> setzt `HTTPS_PROXY=http://user:pass@localhost:port`; reine JVM-Properties
+> (`-Dhttps.proxyHost/Port`) erreichen den Proxy, scheitern aber mit
+> `407 Proxy Authentication Required`. Funktioniert hat im Test
+> `scripts/mvn-sandbox.sh`: Es erzeugt aus `HTTPS_PROXY` eine temporäre
+> Maven-Settings-Datei nur mit `<proxy>` (keine Repo-Credentials, unter
+> `target/`, nach dem Lauf gelöscht) und ruft `mvn -s <datei>` auf. Dazu
+> `filesystem.allowWrite: ["~/.m2/repository"]`, sonst scheitert der Download
+> am lokalen Repo. Ohne Skript lehnt Claude Code die Ableitung per `${…}` in
+> der Kommandozeile ab.
+>
+> Weil die echte `~/.m2/settings.xml` gesperrt ist, baut Maven in der
+> Host-Sandbox gegen **Maven Central**, nicht gegen einen Firmen-Mirror; Maven
+> ignoriert die gesperrte Datei stillschweigend. Für einen Mirror dessen Domain
+> in `allowedDomains` aufnehmen und eine Settings-Datei ohne Credentials
+> mitgeben. Claude-Code-Issue 16222 beschreibt das Proxy-Problem für Gradle und
+> Maven in Claude Code on the Web. In sbx setzt die CLI `JAVA_TOOL_OPTIONS`
+> mit dem Proxy, dort braucht es den Wrapper nicht (siehe E2E-Doku).
 
 ### Schicht 4 — Docker Sandboxes / sbx (Listing 5 + 6)
 

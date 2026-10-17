@@ -73,9 +73,26 @@ rc=1
    `central` und verweigert sie offline. Wer einen Firmen-Mirror nutzt, bekommt
    in der Sandbox also einen anderen Build.
 3. Online scheitert `mvn -q test` nicht am Lesen, sondern am **Schreiben** in
-   `~/.m2/repository` (außerhalb der Schreib-Allowlist). Für Builds mit
-   Downloads braucht es `filesystem.allowWrite` für das lokale Repo (und die
-   JVM-Proxy-Properties, siehe Schicht 3); hier nicht weiter getestet.
+   `~/.m2/repository` (außerhalb der Schreib-Allowlist).
+
+### T2b — Maven online in der Host-Sandbox (Fix, Variante b)
+
+Im kombinierten Lauf (volle `.claude/settings.json`) scheiterte damit auch
+`mvn -q test -o`, der am 11.10. noch grün war: Die lokalen Artefakte stammen
+aus dem Mirror der (jetzt gesperrten) echten settings.xml. Schrittweise
+behoben, jeweils über `claude -p` mit voller Konfiguration:
+
+| Schritt | Ergebnis |
+|---|---|
+| `allowWrite: ["~/.m2/repository"]` | Schreibfehler weg, dann: `repo.maven.apache.org: nodename nor servname provided, or not known` (Maven ignoriert `HTTPS_PROXY`) |
+| Proxy-Ableitung inline mit `${HTTPS_PROXY#…}` | von Claude Code abgelehnt: „A variable in braces in this command can't be checked before it runs" |
+| JVM-Properties `-Dhttps.proxyHost/Port` + `aether.connector.http.useSystemProperties=true` (+ `proxyUser/Password`) | Proxy erreicht, aber `status code: 407, reason phrase: Proxy Authentication Required` |
+| `mktemp` in `$TMPDIR` | `Operation not permitted` (Sandbox) |
+| `scripts/mvn-sandbox.sh`: temporäre Settings-Datei nur mit `<proxy>` aus `HTTPS_PROXY` (Format `http://user:pass@localhost:port`), unter `target/`, `mvn -s` | **rc=0**; GreetingControllerTest grün, ContainerSmokeTest übersprungen (kein Docker-Socket in der Host-Sandbox) |
+
+**Befund:** Der Build in der Host-Sandbox läuft gegen **Maven Central**, nicht
+gegen den Firmen-Mirror, weil die echte settings.xml gesperrt bleibt. Für einen
+Mirror: Domain in `allowedDomains`, credential-freie Settings mitgeben.
 
 ### T3 — sbx mit `sandbox.enabled` + `failIfUnavailable` im Workspace
 
@@ -386,7 +403,8 @@ auskommentiert). Zum Aktivieren einkommentieren und neu bauen.
 ## Kombiniert auf dem Host (permissions + Hook + OS-Sandbox)
 
 Alle drei Schichten gleichzeitig aktiv (volle Projekt-`settings.json`, Trust
-akzeptiert), headless:
+akzeptiert), headless. Lauf vom 11.10.; seit 17.10. baut man hier mit
+`./scripts/mvn-sandbox.sh -q test` (siehe T2b):
 
 ```
 [1] mvn -q test -o   -> laeuft (allow-Regel); OS-Sandbox aktiv, blockt nur ein
