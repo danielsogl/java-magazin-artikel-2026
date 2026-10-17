@@ -10,18 +10,9 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * PreToolUse-Guard fuer Claude Code (Listing 3).
- *
- * Liest das PreToolUse-Event als JSON von stdin, prueft Tool und Argumente
- * gegen eine Deny-Liste und blockiert mit Exit-Code 2 (stderr = Begruendung,
- * die Claude zu sehen bekommt). Ohne onFailure blockiert nur Exit 2 (bzw. JSON
- * permissionDecision "deny"); jeder andere Fehler laesst den Aufruf durch.
- * Deshalb steht in settings.json "onFailure": "block": dann blockiert jeder
- * Exit-Code ausser 0, auch 1, ungueltiges JSON oder ein Timeout.
- *
- * Zweite Verteidigungslinie HINTER den permissions aus settings.json: faengt,
- * was eine reine Glob-Regel nicht sieht (z. B. Secret-Pfade, die ueber ein
- * umgeleitetes HOME oder per cat/base64 in einem Bash-Kommando stecken).
+ * PreToolUse-Guard fuer Claude Code (Listing 3): liest das Event von stdin
+ * und blockiert per Exit 2 (stderr = Begruendung fuer Claude). Andere Fehler
+ * blocken nur dank "onFailure": "block" in settings.json.
  */
 public class GuardHook {
 

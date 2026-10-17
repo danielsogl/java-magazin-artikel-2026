@@ -1,8 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "_kommentar": "Managed Settings fuer das sbx-Template (Ziel: /etc/claude-code/managed-settings.json, per COPY im Dockerfile). Hoechste Prioritaet: Projekt-settings.json koennen die Deny-Regeln nicht aufweichen. sandbox.enabled=false: In der microVM ist die VM die Grenze; Claudes OS-Sandbox (bwrap) stoert dort Testcontainers (/tmp nicht beschreibbar, sbx-Proxy aus dem bwrap-Netz nicht erreichbar). Auf dem Host bleibt sie an. requiredMinimumVersion: aeltere Claude-Code-Versionen starten nicht (2.1.299 enthaelt Sicherheitsfixes fuer Sandbox und Hooks).",
+  "_kommentar": "Managed Settings im sbx-Template, vom Projekt nicht ueberschreibbar. sandbox.enabled=false: in der VM ist die microVM die Grenze, Claudes OS-Sandbox stoert dort Testcontainers.",
   "requiredMinimumVersion": "2.1.299",
-  "sandbox": { "enabled": false },
+  "sandbox": {
+    "enabled": false
+  },
   "permissions": {
     "deny": [
       "Read(~/.m2/settings.xml)",

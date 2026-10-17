@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Maven in Claudes OS-Sandbox: Maven ignoriert HTTPS_PROXY. Die Sandbox setzt
-# HTTPS_PROXY=http://user:pass@localhost:port; daraus eine temporaere
-# Maven-Settings-Datei mit <proxy> erzeugen (ohne Repo-Credentials) und per -s
-# uebergeben. Die echte ~/.m2/settings.xml ist per denyRead gesperrt.
+# Maven ignoriert HTTPS_PROXY der OS-Sandbox (http://user:pass@host:port).
+# Daraus eine temporaere Settings-Datei nur mit <proxy> bauen, per -s uebergeben.
 set -euo pipefail
 [[ -z "${HTTPS_PROXY:-}" ]] && exec mvn "$@"
 p="${HTTPS_PROXY#*://}"; p="${p%%/*}"

@@ -1,19 +1,5 @@
-# Listing 6: Java-Template fuer Docker Sandboxes (sbx).
-#
-# Baut auf dem offiziellen Claude-Code-Template (Flavor -docker) auf und legt eine
-# reproduzierbare Java-Toolchain dazu: Temurin 25 (JDK), Maven 3.10.0,
-# Gradle 9.8.1. Jeder Download wird gegen die offizielle Checksumme geprueft;
-# ein manipuliertes Artefakt bricht den Build ab.
-#
-# Bauen (lokal, arch der Host-microVM):
-#   docker build -t jm-java-sbx:latest docker/
-# In sbx laden und starten:
-#   docker save jm-java-sbx:latest -o jm.tar && sbx template load jm.tar
-#   sbx run --pull never -t jm-java-sbx:latest claude .
-#
-# Basis: claude-code-DOCKER (nicht -minimal), weil nur dieses Flavor einen
-# Docker-Daemon in der microVM mitbringt (Voraussetzung fuer Testcontainers).
-# Mit claude-code-minimal fehlt /var/run/docker.sock und Testcontainers scheitert.
+# Listing 6: Java-Template fuer Docker Sandboxes (sbx), Downloads mit Checksumme.
+# Basis -docker statt -minimal: nur sie hat einen Docker-Daemon (Testcontainers).
 FROM docker/sandbox-templates:claude-code-docker
 
 # TARGETARCH wird von buildx gesetzt: amd64 | arm64
@@ -25,7 +11,7 @@ ARG GRADLE_VERSION=9.8.1
 ARG JBANG_VERSION=0.142.0
 ARG JBANG_SHA256=8bee0bd035344cc46322aff7117ec475d48cefe37f2a79ff2c6ee3db577bb070
 
-# Checksummen (offiziell, siehe docs/e2e-ergebnisse.md fuer die Quellen)
+# Offizielle Checksummen der Releases
 ARG JDK_SHA256_amd64=dbb698396d478e7fa2b1e50f4103324b2a99b90569ee27c33f2261f9215cf41e
 ARG JDK_SHA256_arm64=69df11a02cfa3ef7d7ca645e03edce6778ec090e100f6ae2b42097865730ac52
 ARG MAVEN_SHA512=908b1501bfb420bf7c8affb855534a9c407fd6099367bfb9f2f2dcb8e9799102bffb84518cde74c679bd76870247c6528683abdd620581bffa90f95d92d175aa
@@ -82,24 +68,18 @@ ENV JAVA_HOME=/opt/java \
     JBANG_DIR=/home/agent/.jbang \
     PATH=/opt/java/bin:/opt/maven/bin:/opt/gradle/bin:/opt/jbang/bin:$PATH
 
-# Managed Settings (hoechste Prioritaet, vom Projekt nicht ueberschreibbar):
-# Deny-Regeln, Mindestversion und sandbox.enabled=false. In der microVM ist
-# die VM die Grenze, Claudes OS-Sandbox stoert dort Testcontainers.
+# Managed Settings: Deny-Regeln, Mindestversion, OS-Sandbox aus (stoert Testcontainers).
 COPY managed-settings.json /etc/claude-code/managed-settings.json
 
 # Zurueck auf den unprivilegierten Agent-User des Basis-Images (uid 1000).
 USER agent
 
-# Claude Code im Basis-Image (2.1.280) ist zu alt: "onFailure" fuer Hooks
-# greift erst ab 2.1.295, Sicherheitsfixes fuer Sandbox/Hooks ab 2.1.299.
+# Basis-Image hat 2.1.280; "onFailure" braucht 2.1.295, Sicherheitsfixes 2.1.299.
 ARG CLAUDE_CODE_VERSION=2.1.302
 RUN claude install "${CLAUDE_CODE_VERSION}" && claude --version
 
-# JBang-Abhaengigkeiten des Hooks (Jackson) beim Build in den ~/.m2-Cache
-# vorwaermen. In der sbx-microVM loest JBang die //DEPS nicht ueber den
-# sbx-Proxy auf (Maven selbst schon, via JAVA_TOOL_OPTIONS), der Hook
-# scheitert sonst an der DEPS-Aufloesung. Vorgewaermt laeuft GuardHook.java
-# dort offline. Version muss zur //DEPS-Zeile in GuardHook.java passen.
+# Jackson fuer den Hook vorwaermen: JBang laedt in der VM nicht ueber den Proxy.
+# Version wie in GuardHook.java (//DEPS).
 RUN set -euo pipefail; \
     printf '//DEPS com.fasterxml.jackson.core:jackson-databind:2.22.3\nclass Warm { public static void main(String[] a) {} }\n' > /tmp/Warm.java; \
     jbang /tmp/Warm.java; rm /tmp/Warm.java

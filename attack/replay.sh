@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Spielt die drei Schritte der Nutzlast aus attack/ISSUE-1337.md deterministisch
-# nach, ohne LLM. So laesst sich jede Schutzschicht (Hook, Sandbox) direkt
-# gegen denselben Angriff testen.
-#
-# WICHTIG: setzt HOME auf das Fake-HOME, damit NIE die echte settings.xml
-# gelesen wird. Exfil-Ziel ist der lokale Dummy-Listener.
+# Spielt die Nutzlast aus ISSUE-1337.md ohne LLM nach.
+# HOME zeigt auf das Fake-HOME, die echte settings.xml bleibt unberuehrt.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 export HOME="$HERE/fake-home"

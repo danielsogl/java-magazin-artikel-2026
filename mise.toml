@@ -1,7 +1,6 @@
-# Projekt-lokale Toolchain. Greift NICHT in die globale mise-Konfiguration ein.
-# Einrichten mit:  mise install
+# Projektlokale Toolchain:  mise install
 [tools]
 java = "temurin-25"
 maven = "3.9.16"
-# jbang wird vom PreToolUse-Hook (GuardHook.java) benoetigt. Einmalig:  mise install
+# jbang fuer den PreToolUse-Hook
 jbang = "latest"
