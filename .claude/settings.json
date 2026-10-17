@@ -19,6 +19,7 @@
     ],
     "allow": [
       "Bash(mvn -q test *)",
+      "Bash(./scripts/mvn-sandbox.sh -q test *)",
       "Bash(mvn test *)",
       "Read(src/**)",
       "Read(pom.xml)",
@@ -51,6 +52,9 @@
       ]
     },
     "filesystem": {
+      "allowWrite": [
+        "~/.m2/repository"
+      ],
       "denyRead": [
         "~/.m2/settings.xml",
         "**/.m2/settings.xml",
