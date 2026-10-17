@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(~/.m2/settings.xml)",
+      "Read(**/.m2/settings.xml)",
+      "Read(**/settings.xml)",
+      "Read(**/gradle.properties)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "ask": [
+      "Bash(mvn deploy *)",
+      "Bash(./mvnw deploy *)",
+      "Bash(gradle publish *)",
+      "Bash(./gradlew publish *)"
+    ],
+    "allow": [
+      "Bash(mvn -q test *)",
+      "Bash(./scripts/mvn-sandbox.sh -q test *)",
+      "Bash(mvn test *)",
+      "Read(src/**)",
+      "Read(pom.xml)",
+      "Edit(src/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jbang ${CLAUDE_PROJECT_DIR}/.claude/hooks/GuardHook.java",
+            "timeout": 30,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "repo.maven.apache.org",
+        "repo1.maven.org"
+      ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "~/.m2/repository"
+      ],
+      "denyRead": [
+        "~/.m2/settings.xml",
+        "**/.m2/settings.xml",
+        "**/settings.xml",
+        "**/gradle.properties",
+        "**/.env",
+        "~/.ssh",
+        "~/.aws/credentials"
+      ]
+    }
+  }
+}
